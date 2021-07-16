@@ -1,3 +1,5 @@
+// author: grm4871
+
 var canvas = document.querySelector('canvas');
 
 cw = window.innerWidth;
@@ -125,7 +127,7 @@ var asdf = new Matrix(roty, 3);
 mx = asdf.matmul(mx);
 
 
-// test cube
+// test cube (wireframe)
 /*
 var cube = [];
 cube.push(new Vec3D(1, 1, 1));
