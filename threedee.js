@@ -84,9 +84,7 @@ class Vec3D {
     }
 
     project() {
-        // ???
-        // todo get rid of the strange distortion
-        var tempz = this.z - 80;
+        var tempz = this.z;
         var q = (zfar) / (zfar - znear);
         var f = 1 / (Math.tan((fov / 2) / (90 * Math.PI)));
         var px = ((.75 / aspectratio) * this.x * f) / tempz;
@@ -117,52 +115,19 @@ class Vec4D {
     }
 }
 
-// rotation x matrix
-theta = .01;
-var rotx = [1,0,0,0,Math.cos(theta),-Math.sin(theta),0,Math.sin(theta),Math.cos(theta)];
-var mx = new Matrix(rotx,3);
-theta = .005;
-var roty = [Math.cos(theta),0,Math.sin(theta),0,1,0,-Math.sin(theta),0,Math.cos(theta)];
-var asdf = new Matrix(roty, 3);
-mx = asdf.matmul(mx);
 
+// Outputs a generalized rotation matrix from a given angle tuple in x, y, and z
+function rotation_matrix(theta_x, theta_y, theta_z) {
+    var rotx = new Matrix([1,0,0,0,Math.cos(theta_x),-Math.sin(theta_x),0,Math.sin(theta_x),Math.cos(theta_x)], 3);
+    var roty = new Matrix([Math.cos(theta_y),0,Math.sin(theta_y),0,1,0,-Math.sin(theta_y),0,Math.cos(theta_y)], 3);
+    var rotz = new Matrix([Math.cos(theta_z),-Math.sin(theta_z),0,Math.sin(theta_z),Math.cos(theta_z),0,0,0,1], 3);
+    return rotx.matmul(roty.matmul(rotz));
+}
 
-// test cube (wireframe)
-/*
-var cube = [];
-cube.push(new Vec3D(1, 1, 1));
-cube.push(new Vec3D(1, 1, -1));
-cube.push(new Vec3D(1, -1, 1));
-cube.push(new Vec3D(1, -1, -1));
-cube.push(new Vec3D(-1, 1, 1));
-cube.push(new Vec3D(-1, 1, -1));
-cube.push(new Vec3D(-1, -1, 1));
-cube.push(new Vec3D(-1, -1, -1));
-*/
+// test matrix
+mx = rotation_matrix(.01, .005, .02);
 
 var world = [];
-
-// test cube
-/*
-//south
-world.push([new Vec3D(0,0,0), new Vec3D(0,1,0), new Vec3D(1,1,0)]);
-world.push([new Vec3D(0,0,0), new Vec3D(1,1,0), new Vec3D(1,0,0)]);
-//east
-world.push([new Vec3D(1,0,0), new Vec3D(1,1,0), new Vec3D(1,1,1)]);
-world.push([new Vec3D(1,0,0), new Vec3D(1,1,1), new Vec3D(1,0,1)]);
-//north
-world.push([new Vec3D(1,0,1), new Vec3D(1,1,1), new Vec3D(0,1,1)]);
-world.push([new Vec3D(1,0,1), new Vec3D(0,1,1), new Vec3D(0,0,1)]);
-//west
-world.push([new Vec3D(0,0,1), new Vec3D(0,1,1), new Vec3D(0,1,0)]);
-world.push([new Vec3D(0,0,1), new Vec3D(0,1,0), new Vec3D(0,0,0)]);
-//top
-world.push([new Vec3D(0,1,0), new Vec3D(0,1,1), new Vec3D(1,1,1)]);
-world.push([new Vec3D(0,1,0), new Vec3D(1,1,1), new Vec3D(1,1,0)]);
-//bottom
-world.push([new Vec3D(1,0,1), new Vec3D(0,0,1), new Vec3D(0,0,0)]);
-world.push([new Vec3D(1,0,1), new Vec3D(0,0,0), new Vec3D(1,0,0)]);
-*/
 
 // load object file
 // awful hacky code
@@ -206,13 +171,44 @@ t.onclick = e => {
     input.click();
 }
 
-
-// camera vector
+// todo refactor these out
 camera = new Vec3D(0,0,1);
 light = new Vec3D(0,1,0);
 
 
-// drawing routines
+
+// movement events
+var mvx = 0;
+var mvy = 0;
+var mvz = 0;
+var rx = 0;
+var ry = 0;
+var rz = 0;
+function move(e) {
+    if(e.code == "ArrowRight") {
+        ry = -.01;
+    } else if(e.code == "ArrowLeft") {
+        ry = .01;
+    }
+    if(e.code == "ArrowUp") {
+        mvz = 1;
+    } else if(e.code == "ArrowDown") {
+        mvz = -1;
+    }
+}
+document.addEventListener('keydown', move);
+function stop(e) {
+    if(e.code == "ArrowRight" || e.code == "ArrowLeft") {
+        ry = 0;
+    }
+    if(e.code == "ArrowUp" || e.code == "ArrowDown") {
+        mvz = 0;
+    }
+}
+document.addEventListener('keyup', stop);
+
+
+// -- drawing routines --
 
 function draw_triangle(trgl, shade) {
     c.beginPath();
@@ -226,12 +222,15 @@ function draw_triangle(trgl, shade) {
     c.stroke();
 }
 
-
 function animate() {
     requestAnimationFrame(animate);
     c.clearRect(0, 0, cw, ch);
 
-    // project
+    // move camera
+    CAMERA.move(mvx, mvy, mvz);
+    CAMERA.rotate(rx, ry, rz);
+
+    // project to camera
     var triangles = [];
     world.forEach((t) => {
         triangles.push([t[0].project(), t[1].project(), t[2].project()]);
