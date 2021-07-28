@@ -67,6 +67,11 @@ class Matrix {
     }
 }
 
+// builds a matrix from 3 vectors by treating each one as a basis column
+function matrix_from_3_vectors(v1,v2,v3) {
+    return new Matrix([v1.x,v1.y,v1.z,v2.x,v2.y,v2.z,v3.x,v3.y,v3.z], 3);
+}
+
 class Vec3D {
     constructor(x, y, z) {
         this.x = x;
@@ -114,6 +119,38 @@ class Vec4D {
         this.size = 4;
     }
 }
+
+class Camera {
+    constructor(fd, up, pos) {
+        // all of these should be 3d vectors
+        this.fd = fd;
+        this.up = up;
+        this.rt = fd.cross(up);
+        this.pos = pos;
+    }
+
+    move(x,y,z) {
+        var t_mat = matrix_from_3_vectors(this.rt,this.up,this.fd);
+        this.pos = this.pos.add(t_mat.vecMul3(new Vec3D(x,y,z)));
+    }
+
+    rotate(x,y,z) {
+        var rm = rotation_matrix(x,y,z);
+        this.fd = rm.vecMul3(this.fd);
+        this.up = rm.vecMul3(this.up);
+        this.rt = this.fd.cross(this.up);
+    }
+
+    // transforms a vector to camera-space coordinates
+    transform(vec) {
+        vec = vec.sub(this.pos);
+        var t_mat = matrix_from_3_vectors(this.rt,this.up,this.fd);
+        return t_mat.vecMul3(vec);
+    }
+}
+
+// initial camera
+var CAMERA = new Camera(new Vec3D(0,0,1), new Vec3D(0,1,0), new Vec3D(0,0,-50));
 
 
 // Outputs a generalized rotation matrix from a given angle tuple in x, y, and z
@@ -175,8 +212,6 @@ t.onclick = e => {
 camera = new Vec3D(0,0,1);
 light = new Vec3D(0,1,0);
 
-
-
 // movement events
 var mvx = 0;
 var mvy = 0;
@@ -195,6 +230,11 @@ function move(e) {
     } else if(e.code == "ArrowDown") {
         mvz = -1;
     }
+    if(e.code == "KeyQ") {
+        mvy = .1;
+    } else if(e.code == "KeyE") {
+        mvy = -.1;
+    }
 }
 document.addEventListener('keydown', move);
 function stop(e) {
@@ -203,12 +243,16 @@ function stop(e) {
     }
     if(e.code == "ArrowUp" || e.code == "ArrowDown") {
         mvz = 0;
+    }    
+    if(e.code == "KeyQ" || e.code == "KeyE") {
+        mvy = 0;
     }
 }
 document.addEventListener('keyup', stop);
 
 
 // -- drawing routines --
+
 
 function draw_triangle(trgl, shade) {
     c.beginPath();
@@ -233,7 +277,10 @@ function animate() {
     // project to camera
     var triangles = [];
     world.forEach((t) => {
-        triangles.push([t[0].project(), t[1].project(), t[2].project()]);
+        var x = CAMERA.transform(t[0]);
+        var y = CAMERA.transform(t[1]);
+        var z = CAMERA.transform(t[2]);
+        triangles.push([x.project(), y.project(), z.project()]);
     });
 
     // sort triangles
@@ -241,9 +288,9 @@ function animate() {
         var z1 = f[0].z + f[1].z + f[2].z;
         var z2 = s[0].z + s[1].z + s[2].z;
         if(z1 > z2) {
-            return 1;
-        } else {
             return -1;
+        } else {
+            return 1;
         }
     });
 
@@ -251,7 +298,6 @@ function animate() {
     triangles.forEach((t) => {
         // only draw a triangle if the camera can see it
         // aka, is the plane's normal vector dot the camera vector > 0
-        // magic vector math baybee
         var v1 = t[0].sub(t[1]);
         var v2 = t[0].sub(t[2]);
         var normal = v1.cross(v2);
