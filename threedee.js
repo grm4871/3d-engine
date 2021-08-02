@@ -47,7 +47,7 @@ class Matrix {
     }
 
     matmul(mat) {
-        // only support square matrices of same size (for ease of use)
+        // only supports square matrices
         if(this.size != mat.size) {
             throw new Error("Matrices must have the same size to multiply");
         }
@@ -142,6 +142,8 @@ class Camera {
     }
 
     // transforms a vector to camera-space coordinates
+    // does not project to 2d space, simply translates & rotates the world so
+    // that the camera is the new center
     transform(vec) {
         vec = vec.sub(this.pos);
         var t_mat = matrix_from_3_vectors(this.rt,this.up,this.fd);
@@ -270,7 +272,7 @@ function animate() {
     requestAnimationFrame(animate);
     c.clearRect(0, 0, cw, ch);
 
-    // move camera
+    // move camera based on input
     CAMERA.move(mvx, mvy, mvz);
     CAMERA.rotate(rx, ry, rz);
 
